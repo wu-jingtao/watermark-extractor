@@ -7,15 +7,14 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "测试调试",
-            "program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
+            "name": "调试",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "ts-node/register"
+            ],
             "args": [
-                "--timeout",
-                "999999",
-                "--colors",
-                "--require",
-                "ts-node/register",
-                "${workspaceRoot}/test/index.test.ts"
+                "{file}"
             ],
             "internalConsoleOptions": "openOnSessionStart"
         }
