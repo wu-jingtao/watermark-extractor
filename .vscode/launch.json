@@ -14,7 +14,7 @@
                 "ts-node/register"
             ],
             "args": [
-                "{file}"
+                "${file}"
             ],
             "internalConsoleOptions": "openOnSessionStart"
         }
