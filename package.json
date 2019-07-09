@@ -30,5 +30,10 @@
         "ts-node": "^8.3.0",
         "typescript": "^3.5.2"
     },
-    "dependencies": {}
+    "dependencies": {
+        "canvas": "^2.5.0"
+    },
+    "peerDependencies": {
+        "@tensorflow/tfjs-node-gpu": "^1.2.3"
+    }
 }
