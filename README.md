@@ -1,5 +1,5 @@
-# video-watermark-remover
-视频水印去除工具
+# watermark-extractor
+通过神经网络将图片中的水印提取出来，为下一步去水印打下基础。
 
 ### Windows GPU开发环境搭建
 1. 安装CUDA，[参考视频](https://www.youtube.com/watch?v=HExRhnO5Mqs)
@@ -26,3 +26,8 @@
         node-gyp rebuild
         If you don't have node-gyp - npm install -g node-gyp.
         ```
+
+### 训练数据准备
+训练所使用的无水印图片存放在`[training_data | testing_data]/original`目录下。这里面的所有图片来自于[guanyuhan426的视频《东京印象 •春》](https://www.bilibili.com/video/av1084855/?p=2)，尺寸1080p，通过 `ffmpeg -skip_frame nokey -i 视频名称.flv -vsync 0 -r 30 -f image2 %d.jpeg` 提取的关键帧。
+
+训练使用的水印图片存放在`[training_data | testing_data]/watermark`目录下。水印图片需要是PNG格式，水印部分应当不透明，大小为100px。
