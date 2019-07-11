@@ -46,7 +46,10 @@ export class DataProvider {
 
         let watermark = this._watermarkImageCache.get(pickedWatermark);
         if (watermark === undefined) {
-            watermark = tf.browser.fromPixels(await canvas.loadImage(this._watermarkPaths[pickedWatermark]) as any, 4);
+            const image = await canvas.loadImage(await fs.promises.readFile(this._watermarkPaths[pickedWatermark]));
+            const tempCanvas = canvas.createCanvas(image.naturalWidth, image.naturalHeight);
+            tempCanvas.getContext('2d').drawImage(image, 0, 0);
+            watermark = tf.browser.fromPixels(tempCanvas as any, 4);
             this._watermarkImageCache.set(pickedWatermark, watermark);
         }
 
@@ -54,7 +57,10 @@ export class DataProvider {
         for (const item of pickedOriginal) {
             let ori = this._originalImageCache.get(item);
             if (ori === undefined) {
-                ori = tf.browser.fromPixels(await canvas.loadImage(this._originalPaths[item]) as any);
+                const image = await canvas.loadImage(await fs.promises.readFile(this._originalPaths[item]));
+                const tempCanvas = canvas.createCanvas(image.naturalWidth, image.naturalHeight);
+                tempCanvas.getContext('2d').drawImage(image, 0, 0);
+                ori = tf.browser.fromPixels(tempCanvas as any);
                 this._originalImageCache.set(item, ori);
             }
             original.push(ori);
@@ -72,8 +78,9 @@ export class DataProvider {
             }
         };
 
-        const cutWatermark = watermark.slice([cutPosition.watermark.x, cutPosition.watermark.y], [this._windowsSize, this._windowsSize]);
-        const cutOriginal = original.map(item => item.slice([cutPosition.original.x, cutPosition.original.y], [this._windowsSize, this._windowsSize]))
+        //剪切图片
+        const cutWatermark = watermark.slice([cutPosition.watermark.y, cutPosition.watermark.x], [this._windowsSize, this._windowsSize]);
+        const cutOriginal = original.map(item => item.slice([cutPosition.original.y, cutPosition.original.x], [this._windowsSize, this._windowsSize]));
 
         return {
             original: cutOriginal,
@@ -95,20 +102,20 @@ export class DataProvider {
         //混合原始图片与水印图片
         //公式为：原始图片*(1-透明度)+水印图片*透明度
         const mixed = tf.tidy(() => {
-            const watermarkAlpha = data.watermark.stridedSlice([0, 0, 3], [this._windowsSize, this._windowsSize, 4], [1, 1, 1]).mul(randomAlpha);   //水印透明度
+            const watermarkAlpha = data.watermark.stridedSlice([0, 0, 3], [this._windowsSize, this._windowsSize, 4], [1, 1, 1]).div(255).mul(randomAlpha);   //水印透明度
             const watermarkColor = data.watermark.stridedSlice([0, 0, 0], [this._windowsSize, this._windowsSize, 3], [1, 1, 1]);
-            const originalAlpha = tf.onesLike(watermarkAlpha).sub(watermarkAlpha);  //原始图片透明度
-            return data.original.map(item => item.mul(originalAlpha).add(watermarkColor.mul(watermarkAlpha)));
+            const originalAlpha = tf.onesLike(watermarkAlpha).sub(watermarkAlpha);  //要应用到原始图片上的透明度
+            return data.original.map(item => item.mul(originalAlpha).add(watermarkColor.mul(watermarkAlpha)).round().cast('int32'));
         });
 
         //调整水印图片的透明度
-        const watermark = tf.tidy(() => data.watermark.mul(tf.tensor([1, 1, 1, randomAlpha], [1, 1, 4])));
+        const watermark = tf.tidy(() => data.watermark.mul(tf.tensor([1, 1, 1, randomAlpha], [1, 1, 4])).round().cast('int32'));
 
         data.dispose();
 
         return {
-            test: mixed,
-            answer: watermark,
+            test: mixed as tf.Tensor3D[],
+            answer: watermark as tf.Tensor3D,
             dispose() {
                 watermark.dispose();
                 mixed.forEach(item => item.dispose());
@@ -122,6 +129,7 @@ export class DataProvider {
     async getNoWatermarkData() {
         const data = await this._prepareData();
         const emptyWatermark = tf.zerosLike(data.watermark);
+        data.watermark.dispose();
         return {
             test: data.original,
             answer: emptyWatermark,
