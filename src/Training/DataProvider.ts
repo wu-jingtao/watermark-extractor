@@ -8,88 +8,99 @@ import * as tf from '@tensorflow/tfjs';
  * 训练数据提供器
  */
 export class DataProvider {
+    private static readonly _originalImageSize = [1920, 1080];  //原始图片大小
+    private static readonly _watermarkImageSize = 150;          //水印图片大小
+    private static readonly _originalImageDir = path.join(__dirname, '../../training_data/original');      //原始图片目录
+    private static readonly _watermarkImageDir = path.join(__dirname, '../../training_data/watermark');    //水印图片目录
 
-    private readonly _originalPaths: string[];     //原始图片路径
-    private readonly _watermarkPaths: string[];    //水印图片路径
+    private readonly _originalImagePaths: string[];     //原始图片路径
+    private readonly _watermarkImagePaths: string[];    //水印图片路径
     private readonly _windowsSize: number;
     private readonly _stackSize: number;
 
     private readonly _originalImageCache: Map<number, tf.Tensor3D> = new Map();  //原始图片缓存，key对应_originalPaths的索引
-    private readonly _watermarkImageCache: Map<number, tf.Tensor3D> = new Map(); //水印图片缓存，水印包含alpha通道
+    private readonly _watermarkImageCache: Map<number, tf.Tensor3D> = new Map(); //水印图片缓存
 
     /**
-     * @param dataSet 使用训练集还是测试集的数据
      * @param windowSize 要选取的图像方块大小。随机从图片上剪切`windowSize X windowSize`大小的图片给机器学习
-     * @param stackSize 选取几张剪切下的图片进行垂直堆叠
+     * @param stackSize 选取几张剪切下的图片进行堆叠(在RGB轴上进行)
      */
-    constructor(dataSet: 'training' | 'testing', windowSize: number, stackSize: number) {
-        const dataPath = path.join(__dirname, '../../', dataSet === 'training' ? 'training_data' : 'testing_data');
-        this._originalPaths = fs.readdirSync(path.join(dataPath, 'original')).map(item => path.join(dataPath, 'original', item));
-        this._watermarkPaths = fs.readdirSync(path.join(dataPath, 'watermark')).map(item => path.join(dataPath, 'watermark', item));
+    constructor(windowSize: number, stackSize: number) {
+        this._originalImagePaths = fs.readdirSync(DataProvider._originalImageDir).map(item => path.join(DataProvider._originalImageDir, item));
+        this._watermarkImagePaths = fs.readdirSync(DataProvider._watermarkImageDir).map(item => path.join(DataProvider._watermarkImageDir, item));
 
         if (windowSize < 1) throw new Error('windowSize不可以小于1');
         if (stackSize < 1) throw new Error('stackSize不可以小于1');
-        if (stackSize > this._originalPaths.length) throw new Error('stackSize超过了数据集中original图片的数量');
+        if (windowSize > DataProvider._watermarkImageSize) throw new Error('windowSize超过了水印图片的最大尺寸');
+        if (stackSize > this._originalImagePaths.length) throw new Error('stackSize超过了数据集中original图片的数量');
 
         this._windowsSize = Math.trunc(windowSize);
         this._stackSize = Math.trunc(stackSize);
     }
 
     /**
-     * 准备数据，随机返回一张windowSize大小的水印图片和stackSize张原始图片
+     * 准备数据，随机返回一张windowSize大小的水印图片和堆叠原始图片
      */
-    private async _prepareData(): Promise<{ watermark: tf.Tensor3D, original: tf.Tensor3D[], dispose: Function }> {
-        const pickedOriginal = _.uniq(_.times(this._stackSize, () => Math.floor(this._originalPaths.length * Math.random())));
-        const pickedWatermark = Math.floor(this._watermarkPaths.length * Math.random());
-
+    private async _prepareData(): Promise<{ watermark: tf.Tensor3D, original: tf.Tensor4D, dispose: Function }> {
+        const pickedOriginal = _.uniq(_.times(this._stackSize, () => Math.floor(this._originalImagePaths.length * Math.random())));
+        const pickedWatermark = Math.floor(this._watermarkImagePaths.length * Math.random());
         if (pickedOriginal.length !== this._stackSize) return this._prepareData();   //如果因重复而没有挑选到足够的原始图片就重新挑选
 
-        let watermark = this._watermarkImageCache.get(pickedWatermark);
-        if (watermark === undefined) {
-            const image = await canvas.loadImage(await fs.promises.readFile(this._watermarkPaths[pickedWatermark]));
-            const tempCanvas = canvas.createCanvas(image.naturalWidth, image.naturalHeight);
-            tempCanvas.getContext('2d').drawImage(image, 0, 0);
-            watermark = tf.browser.fromPixels(tempCanvas as any, 4);
-            this._watermarkImageCache.set(pickedWatermark, watermark);
-        }
-
-        let original = [];
-        for (const item of pickedOriginal) {
-            let ori = this._originalImageCache.get(item);
-            if (ori === undefined) {
-                const image = await canvas.loadImage(await fs.promises.readFile(this._originalPaths[item]));
-                const tempCanvas = canvas.createCanvas(image.naturalWidth, image.naturalHeight);
-                tempCanvas.getContext('2d').drawImage(image, 0, 0);
-                ori = tf.browser.fromPixels(tempCanvas as any);
-                this._originalImageCache.set(item, ori);
-            }
-            original.push(ori);
-        }
+        const watermark = await this.getImageData('watermark', pickedWatermark);
+        const original = await Promise.all(pickedOriginal.map(item => this.getImageData('original', item)));
 
         //根据窗口大小，随机选择一个在图片上的剪切位置
         const cutPosition = {
             original: {
-                x: Math.floor((1920 - this._windowsSize) * Math.random()),
-                y: Math.floor((1080 - this._windowsSize) * Math.random())
+                x: Math.floor((DataProvider._originalImageSize[0] - this._windowsSize) * Math.random()),
+                y: Math.floor((DataProvider._originalImageSize[1] - this._windowsSize) * Math.random())
             },
             watermark: {
-                x: Math.floor((100 - this._windowsSize) * Math.random()),
-                y: Math.floor((100 - this._windowsSize) * Math.random())
+                x: Math.floor((DataProvider._watermarkImageSize - this._windowsSize) * Math.random()),
+                y: Math.floor((DataProvider._watermarkImageSize - this._windowsSize) * Math.random())
             }
         };
 
-        //剪切图片
+        //剪切水印图片
         const cutWatermark = watermark.slice([cutPosition.watermark.y, cutPosition.watermark.x], [this._windowsSize, this._windowsSize]);
-        const cutOriginal = original.map(item => item.slice([cutPosition.original.y, cutPosition.original.x], [this._windowsSize, this._windowsSize]));
+        //剪切并堆叠原始图片
+        const cutOriginal = tf.tidy(() => tf.stack(original.map(item => item.slice([cutPosition.original.y, cutPosition.original.x], [this._windowsSize, this._windowsSize])), 3)) as tf.Tensor4D;
 
         return {
             original: cutOriginal,
             watermark: cutWatermark,
             dispose() {
                 cutWatermark.dispose();
-                cutOriginal.forEach(item => item.dispose());
+                cutOriginal.dispose();
             }
         };
+    }
+
+    /**
+     * 获取图片数据，返回图片的像素值被除以了255
+     * @param type 原始图片还是水印图片
+     * @param nameOrIndex 图片的文件名称或文件的索引号
+     */
+    async getImageData(type: 'original' | 'watermark', nameOrIndex: string | number): Promise<tf.Tensor3D> {
+        const imagePaths = type === 'original' ? this._originalImagePaths : this._watermarkImagePaths;
+        const imageCache = type === 'original' ? this._originalImageCache : this._watermarkImageCache;
+
+        if ('string' === typeof nameOrIndex) {
+            const index = imagePaths.indexOf(path.join(type === 'original' ? DataProvider._originalImageDir : DataProvider._watermarkImageDir, nameOrIndex));
+            if (index === -1) throw new Error(`没有找到对应的图片: ${type} ${nameOrIndex}`);
+            nameOrIndex = index;
+        }
+
+        let result = imageCache.get(nameOrIndex);
+        if (result === undefined) {
+            const image = await canvas.loadImage(await fs.promises.readFile(imagePaths[nameOrIndex]));
+            const tempCanvas = canvas.createCanvas(image.naturalWidth, image.naturalHeight);
+            tempCanvas.getContext('2d', { alpha: false }).drawImage(image, 0, 0);
+            result = tf.tidy(() => tf.browser.fromPixels(tempCanvas as any).div(255)) as tf.Tensor3D;
+            imageCache.set(nameOrIndex, result);
+        }
+
+        return result;
     }
 
     /**
@@ -102,23 +113,21 @@ export class DataProvider {
         //混合原始图片与水印图片
         //公式为：原始图片*(1-透明度)+水印图片*透明度
         const mixed = tf.tidy(() => {
-            const watermarkAlpha = data.watermark.stridedSlice([0, 0, 3], [this._windowsSize, this._windowsSize, 4], [1, 1, 1]).div(255).mul(randomAlpha);   //水印透明度
-            const watermarkColor = data.watermark.stridedSlice([0, 0, 0], [this._windowsSize, this._windowsSize, 3], [1, 1, 1]);
-            const originalAlpha = tf.onesLike(watermarkAlpha).sub(watermarkAlpha);  //要应用到原始图片上的透明度
-            return data.original.map(item => item.mul(originalAlpha).add(watermarkColor.mul(watermarkAlpha)).round().cast('int32'));
-        });
+            const original = data.original.mul(1 - randomAlpha);
+            const watermark = data.watermark.mul(randomAlpha).reshape([this._windowsSize, this._windowsSize, 3, 1]);
+            return original.add(watermark);
+        }) as tf.Tensor4D;
 
-        //调整水印图片的透明度
-        const watermark = tf.tidy(() => data.watermark.mul(tf.tensor([1, 1, 1, randomAlpha], [1, 1, 4])).round().cast('int32'));
+        //为水印图片添加alpha值
+        const watermark = data.watermark.pad([[0, 0], [0, 0], [0, 1]], randomAlpha);
 
         data.dispose();
-
         return {
-            test: mixed as tf.Tensor3D[],
-            answer: watermark as tf.Tensor3D,
+            test: mixed,
+            answer: watermark,
             dispose() {
                 watermark.dispose();
-                mixed.forEach(item => item.dispose());
+                mixed.dispose();
             }
         }
     }
@@ -128,7 +137,7 @@ export class DataProvider {
      */
     async getNoWatermarkData() {
         const data = await this._prepareData();
-        const emptyWatermark = tf.zerosLike(data.watermark);
+        const emptyWatermark = tf.zeros([this._windowsSize, this._windowsSize, 4]);
         data.watermark.dispose();
         return {
             test: data.original,

@@ -7,7 +7,7 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "调试",
+            "name": "启动训练",
             "runtimeArgs": [
                 "--nolazy",
                 "-r",
