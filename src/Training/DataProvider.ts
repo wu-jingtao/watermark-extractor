@@ -17,6 +17,7 @@ export class DataProvider {
     private readonly _watermarkImagePaths: string[];    //水印图片路径
     private readonly _windowsSize: number;
     private readonly _stackSize: number;
+    private readonly _minTransparency: number;
 
     private readonly _originalImageCache: Map<number, tf.Tensor3D> = new Map();  //原始图片缓存，key对应_originalPaths的索引
     private readonly _watermarkImageCache: Map<number, tf.Tensor3D> = new Map(); //水印图片缓存
@@ -24,18 +25,21 @@ export class DataProvider {
     /**
      * @param windowSize 要选取的图像方块大小。随机从图片上剪切`windowSize X windowSize`大小的图片给机器学习
      * @param stackSize 选取几张剪切下的图片进行堆叠(在RGB轴上进行)
+     * @param minTransparency 最小透明度
      */
-    constructor(windowSize: number, stackSize: number) {
+    constructor(windowSize: number, stackSize: number, minTransparency: number) {
         this._originalImagePaths = fs.readdirSync(DataProvider._originalImageDir).map(item => path.join(DataProvider._originalImageDir, item));
         this._watermarkImagePaths = fs.readdirSync(DataProvider._watermarkImageDir).map(item => path.join(DataProvider._watermarkImageDir, item));
 
         if (windowSize < 1) throw new Error('windowSize不可以小于1');
         if (stackSize < 1) throw new Error('stackSize不可以小于1');
+        if (minTransparency > 1 || minTransparency < 0) throw new Error('minTransparency取值必须在0-1之间');
         if (windowSize > DataProvider._watermarkImageSize) throw new Error('windowSize超过了水印图片的最大尺寸');
         if (stackSize > this._originalImagePaths.length) throw new Error('stackSize超过了数据集中original图片的数量');
 
         this._windowsSize = Math.trunc(windowSize);
         this._stackSize = Math.trunc(stackSize);
+        this._minTransparency = minTransparency;
     }
 
     /**
@@ -102,7 +106,7 @@ export class DataProvider {
      */
     async getWaterMarkData() {
         const data = await this._prepareData();
-        const randomAlpha = +Math.random().toFixed(2);  //随机水印透明度
+        const randomAlpha = this._minTransparency + +((1 - this._minTransparency) * Math.random()).toFixed(2);  //随机水印透明度
 
         //混合原始图片与水印图片
         //公式为：原始图片*(1-透明度)+水印图片*透明度

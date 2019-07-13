@@ -2,11 +2,12 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as _ from 'lodash';
 import * as canvas from 'canvas';
-import * as tf from '@tensorflow/tfjs-node-gpu';
+import * as tf from '@tensorflow/tfjs-node';
 import { DataProvider } from "./DataProvider";
 
 const windowSize = 1;
-const stackSize = 20;
+const stackSize = 40;
+const minTransparency = 0.4;
 const noWatermarkPercentage = 0.3;  //学习数据中包含的无水印图片
 const trainingDataNumber = 10000;   //训练数据数量
 const validationPercentage = 0.2;   //分割多少的训练数据出来用作验证
@@ -21,15 +22,15 @@ async function training() {
     await fs.emptyDir(tensorBoardPath);
     await fs.emptyDir(savedModelPath);
 
-    const dataProvider = new DataProvider(windowSize, stackSize);
+    const inputPixelNumber = windowSize ** 2 * 3 * stackSize;
+    const outputPixelNumber = windowSize ** 2 * 4;
+
+    const dataProvider = new DataProvider(windowSize, stackSize, minTransparency);
 
     const model = tf.sequential({ name: 'watermark-extractor' });
-    model.add(tf.layers.inputLayer({ inputShape: [windowSize ** 2 * 3 * stackSize] }));
-    model.add(tf.layers.dense({ units: windowSize ** 2 * 3 * stackSize * 2, activation: 'relu' }));
-    model.add(tf.layers.batchNormalization());
-    model.add(tf.layers.dense({ units: windowSize ** 2 * 3 * stackSize, activation: 'relu' }));
-    model.add(tf.layers.batchNormalization());
-    model.add(tf.layers.dense({ units: windowSize ** 2 * 4 }));
+    model.add(tf.layers.inputLayer({ inputShape: [inputPixelNumber] }));
+    model.add(tf.layers.dense({ units: inputPixelNumber, activation: 'relu' }));
+    model.add(tf.layers.dense({ units: outputPixelNumber, useBias: true }));
     model.add(tf.layers.reLU({ maxValue: 1 }));
     model.add(tf.layers.reshape({ targetShape: [windowSize, windowSize, 4] }));
     model.compile({ optimizer: tf.train.adam(), loss: 'meanSquaredError', metrics: ['accuracy'] });
@@ -68,30 +69,29 @@ async function check() {
 
     const pieceNumber = Math.trunc(150 / windowSize);
     const pictureSize = windowSize * pieceNumber;
-    const dataProvider = new DataProvider(pictureSize, stackSize);
-    const data = await Promise.all(_.times(10, () => dataProvider.getWaterMarkData()));
+    const dataProvider = new DataProvider(pictureSize, stackSize, minTransparency);
     const model = await tf.loadLayersModel('file://' + path.join(savedModelPath, 'model.json'));
-
-    const result = data.map((item, i) => tf.tidy(() => {
-        const result_row: tf.Tensor4D[] = [];
-        for (const row of item.test.split(pieceNumber)) {
-            const result_cell: tf.Tensor4D[] = [];
-            for (const cell of row.split(pieceNumber, 1)) {
-                result_cell.push(model.predict(cell.flatten().expandDims()) as any);
-            }
-            result_row.push(tf.concat(result_cell as any, 2));
-        }
-
-        console.log('完成：', i + 1);
-        return tf.concat(result_row, 1).squeeze([0]);
-    }));
-
     const can = canvas.createCanvas(pictureSize, pictureSize);
     const ctx = can.getContext('2d');
 
+    const data = _.concat(await Promise.all(_.times(10, () => dataProvider.getWaterMarkData())), await Promise.all(_.times(3, () => dataProvider.getNoWatermarkData())));
+
     for (let i = 0; i < data.length; i++) {
+        const result = tf.tidy(() => {
+            const result_row: tf.Tensor4D[] = [];
+            for (const row of data[i].test.split(pieceNumber)) {
+                const result_cell: tf.Tensor4D[] = [];
+                for (const cell of row.split(pieceNumber, 1)) {
+                    result_cell.push(model.predict(cell.flatten().expandDims()) as any);
+                }
+                result_row.push(tf.concat(result_cell as any, 2));
+            }
+
+            return tf.concat(result_row, 1).squeeze([0]);
+        });
+
         const real = tf.tidy(() => data[i].answer.mul(255).floor().cast('int32')) as tf.Tensor3D;
-        const predict = tf.tidy(() => result[i].mul(255).floor().cast('int32')) as tf.Tensor3D;
+        const predict = tf.tidy(() => result.mul(255).floor().cast('int32')) as tf.Tensor3D;
 
         ctx.clearRect(0, 0, pictureSize, pictureSize);
         ctx.putImageData(canvas.createImageData(await tf.browser.toPixels(real), pictureSize, pictureSize), 0, 0);
@@ -103,10 +103,12 @@ async function check() {
 
         real.dispose();
         predict.dispose();
+
+        console.log('完成：', i + 1);
     }
 
     console.log('完成');
 }
 
-//training();
-check();
+training();
+//check();
