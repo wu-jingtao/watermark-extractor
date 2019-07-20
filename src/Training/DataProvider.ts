@@ -15,7 +15,7 @@ export class DataProvider {
 
     private readonly _originalImagePaths: string[];     //原始图片路径
     private readonly _watermarkImagePaths: string[];    //水印图片路径
-    private readonly _windowsSize: number;
+    private readonly _windowSize: number;
     private readonly _stackSize: number;
     private readonly _minTransparency: number;
 
@@ -37,7 +37,7 @@ export class DataProvider {
         if (windowSize > DataProvider._watermarkImageSize) throw new Error('windowSize超过了水印图片的最大尺寸');
         if (stackSize > this._originalImagePaths.length) throw new Error('stackSize超过了数据集中original图片的数量');
 
-        this._windowsSize = Math.trunc(windowSize);
+        this._windowSize = Math.trunc(windowSize);
         this._stackSize = Math.trunc(stackSize);
         this._minTransparency = minTransparency;
     }
@@ -67,9 +67,11 @@ export class DataProvider {
      * 准备数据，随机返回一张windowSize大小的水印图片和堆叠原始图片
      */
     private async _prepareData(): Promise<{ watermark: tf.Tensor3D, original: tf.Tensor4D, dispose: Function }> {
-        const pickedOriginal = _.uniq(_.times(this._stackSize, () => Math.floor(this._originalImagePaths.length * Math.random())));
+        const pickedOriginal = _.uniq(_.times(this._stackSize * 2, () => Math.floor(this._originalImagePaths.length * Math.random())));
+        if (pickedOriginal.length < this._stackSize) return this._prepareData();   //如果因重复而没有挑选到足够的原始图片就重新挑选
+        pickedOriginal.length = this._stackSize;
+
         const pickedWatermark = Math.floor(this._watermarkImagePaths.length * Math.random());
-        if (pickedOriginal.length !== this._stackSize) return this._prepareData();   //如果因重复而没有挑选到足够的原始图片就重新挑选
 
         const watermark = await this._getImageData('watermark', pickedWatermark);
         const original = await Promise.all(pickedOriginal.map(item => this._getImageData('original', item)));
@@ -77,19 +79,19 @@ export class DataProvider {
         //根据窗口大小，随机选择一个在图片上的剪切位置
         const cutPosition = {
             original: {
-                x: Math.floor((DataProvider._originalImageSize[0] - this._windowsSize) * Math.random()),
-                y: Math.floor((DataProvider._originalImageSize[1] - this._windowsSize) * Math.random())
+                x: Math.floor((DataProvider._originalImageSize[0] - this._windowSize) * Math.random()),
+                y: Math.floor((DataProvider._originalImageSize[1] - this._windowSize) * Math.random())
             },
             watermark: {
-                x: Math.floor((DataProvider._watermarkImageSize - this._windowsSize) * Math.random()),
-                y: Math.floor((DataProvider._watermarkImageSize - this._windowsSize) * Math.random())
+                x: Math.floor((DataProvider._watermarkImageSize - this._windowSize) * Math.random()),
+                y: Math.floor((DataProvider._watermarkImageSize - this._windowSize) * Math.random())
             }
         };
 
         //剪切水印图片
-        const cutWatermark = watermark.slice([cutPosition.watermark.y, cutPosition.watermark.x], [this._windowsSize, this._windowsSize]);
+        const cutWatermark = watermark.slice([cutPosition.watermark.y, cutPosition.watermark.x], [this._windowSize, this._windowSize]);
         //剪切并堆叠原始图片
-        const cutOriginal = tf.tidy(() => tf.stack(original.map(item => item.slice([cutPosition.original.y, cutPosition.original.x], [this._windowsSize, this._windowsSize])), 3)) as tf.Tensor4D;
+        const cutOriginal = tf.tidy(() => tf.stack(original.map(item => item.slice([cutPosition.original.y, cutPosition.original.x], [this._windowSize, this._windowSize])), 3)) as tf.Tensor4D;
 
         return {
             original: cutOriginal,
@@ -112,7 +114,7 @@ export class DataProvider {
         //公式为：原始图片*(1-透明度)+水印图片*透明度
         const mixed = tf.tidy(() => {
             const original = data.original.mul(1 - randomAlpha);
-            const watermark = data.watermark.mul(randomAlpha).reshape([this._windowsSize, this._windowsSize, 3, 1]);
+            const watermark = data.watermark.mul(randomAlpha).reshape([this._windowSize, this._windowSize, 3, 1]);
             return original.add(watermark);
         }) as tf.Tensor4D;
 
@@ -135,7 +137,7 @@ export class DataProvider {
      */
     async getNoWatermarkData() {
         const data = await this._prepareData();
-        const emptyWatermark = tf.zeros([this._windowsSize, this._windowsSize, 4]);
+        const emptyWatermark = tf.zeros([this._windowSize, this._windowSize, 4]);
         data.watermark.dispose();
         return {
             test: data.original,
@@ -145,5 +147,13 @@ export class DataProvider {
                 emptyWatermark.dispose();
             }
         }
+    }
+
+    /**
+     * 清空所有图片缓存，释放内存资源
+     */
+    dispose() {
+        this._originalImageCache.forEach(item => item.dispose());
+        this._watermarkImageCache.forEach(item => item.dispose());
     }
 }

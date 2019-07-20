@@ -2,8 +2,12 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as _ from 'lodash';
 import * as canvas from 'canvas';
-import * as tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs-node-gpu';
 import { DataProvider } from "./DataProvider";
+
+/**
+ * 当前模型的效果已经比较令人满意了
+ */
 
 const windowSize = 1;
 const stackSize = 40;
@@ -48,6 +52,7 @@ async function training() {
         inputs.push(tf.tidy(() => data.test.flatten()));
         outputs.push(data.answer);
     }
+    dataProvider.dispose();
 
     const split = Math.floor(trainingDataNumber * (1 - validationPercentage));
     await model.fit(tf.stack(inputs.slice(0, split)), tf.stack(outputs.slice(0, split)), {
@@ -75,19 +80,13 @@ async function check() {
     const ctx = can.getContext('2d');
 
     const data = _.concat(await Promise.all(_.times(10, () => dataProvider.getWaterMarkData())), await Promise.all(_.times(3, () => dataProvider.getNoWatermarkData())));
+    dataProvider.dispose();
 
     for (let i = 0; i < data.length; i++) {
         const result = tf.tidy(() => {
-            const result_row: tf.Tensor4D[] = [];
-            for (const row of data[i].test.split(pieceNumber)) {
-                const result_cell: tf.Tensor4D[] = [];
-                for (const cell of row.split(pieceNumber, 1)) {
-                    result_cell.push(model.predict(cell.flatten().expandDims()) as any);
-                }
-                result_row.push(tf.concat(result_cell as any, 2));
-            }
-
-            return tf.concat(result_row, 1).squeeze([0]);
+            const input = tf.stack(_.flatten(data[i].test.split(pieceNumber).map(row => row.split(pieceNumber, 1).map(item => item.flatten()))));
+            const output = model.predict(input) as tf.Tensor2D;
+            return tf.concat(output.split(pieceNumber).map(item => tf.concat(item.split(pieceNumber).map(item => item.reshape([windowSize, windowSize, 4])), 1)));
         });
 
         const real = tf.tidy(() => data[i].answer.mul(255).floor().cast('int32')) as tf.Tensor3D;
@@ -101,6 +100,7 @@ async function check() {
         ctx.putImageData(canvas.createImageData(await tf.browser.toPixels(predict), pictureSize, pictureSize), 0, 0);
         await fs.writeFile(path.join(checkPath, `${i}-p.png`), can.toBuffer('image/png'));
 
+        result.dispose();
         real.dispose();
         predict.dispose();
 
@@ -110,5 +110,5 @@ async function check() {
     console.log('完成');
 }
 
-training();
-//check();
+//training();
+check();
