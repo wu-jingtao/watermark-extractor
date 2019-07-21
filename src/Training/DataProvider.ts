@@ -105,48 +105,62 @@ export class DataProvider {
 
     /**
      * 获取加过水印的训练数据
+     * @param pieces 要获取多少数据
      */
-    async getWaterMarkData() {
-        const data = await this._prepareData();
-        const randomAlpha = this._minTransparency + +((1 - this._minTransparency) * Math.random()).toFixed(2);  //随机水印透明度
+    async getWaterMarkData(pieces = 1) {
+        const result: { test: tf.Tensor4D, answer: tf.Tensor3D, dispose: Function }[] = [];
 
-        //混合原始图片与水印图片
-        //公式为：原始图片*(1-透明度)+水印图片*透明度
-        const mixed = tf.tidy(() => {
-            const original = data.original.mul(1 - randomAlpha);
-            const watermark = data.watermark.mul(randomAlpha).reshape([this._windowSize, this._windowSize, 3, 1]);
-            return original.add(watermark);
-        }) as tf.Tensor4D;
+        for (let i = 0; i < pieces; i++) {
+            const data = await this._prepareData();
+            const randomAlpha = this._minTransparency + +((1 - this._minTransparency) * Math.random()).toFixed(2);  //随机水印透明度
 
-        //为水印图片添加alpha值
-        const watermark = data.watermark.pad([[0, 0], [0, 0], [0, 1]], randomAlpha);
+            //混合原始图片与水印图片
+            //公式为：原始图片*(1-透明度)+水印图片*透明度
+            const mixed = tf.tidy(() => {
+                const original = data.original.mul(1 - randomAlpha);
+                const watermark = data.watermark.mul(randomAlpha).reshape([this._windowSize, this._windowSize, 3, 1]);
+                return original.add(watermark);
+            }) as tf.Tensor4D;
 
-        data.dispose();
-        return {
-            test: mixed,
-            answer: watermark,
-            dispose() {
-                watermark.dispose();
-                mixed.dispose();
-            }
+            //为水印图片添加alpha值
+            const watermark = data.watermark.pad([[0, 0], [0, 0], [0, 1]], randomAlpha);
+
+            data.dispose();
+            result.push({
+                test: mixed,
+                answer: watermark,
+                dispose() {
+                    watermark.dispose();
+                    mixed.dispose();
+                }
+            });
         }
+
+        return result;
     }
 
     /**
      * 获取没有水印的训练数据
+     * @param pieces 要获取多少数据
      */
-    async getNoWatermarkData() {
-        const data = await this._prepareData();
-        const emptyWatermark = tf.zeros([this._windowSize, this._windowSize, 4]);
-        data.watermark.dispose();
-        return {
-            test: data.original,
-            answer: emptyWatermark,
-            dispose() {
-                data.dispose();
-                emptyWatermark.dispose();
-            }
+    async getNoWatermarkData(pieces = 1) {
+        const result: { test: tf.Tensor4D, answer: tf.Tensor3D, dispose: Function }[] = [];
+
+        for (let i = 0; i < pieces; i++) {
+            const data = await this._prepareData();
+            const emptyWatermark: tf.Tensor3D = tf.zeros([this._windowSize, this._windowSize, 4]);
+            data.watermark.dispose();
+            result.push({
+                test: data.original,
+                answer: emptyWatermark,
+                dispose() {
+                    data.dispose();
+                    emptyWatermark.dispose();
+                }
+            });
         }
+
+        return result;
     }
 
     /**

@@ -7,14 +7,28 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "启动训练",
+            "name": "训练-判断是否有水印",
             "runtimeArgs": [
                 "--nolazy",
                 "-r",
                 "ts-node/register"
             ],
             "args": [
-                "${workspaceFolder}/src/Training/index.ts"
+                "${workspaceFolder}/src/Training/PredictHasWatermark.ts"
+            ],
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "训练-提取水印",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "ts-node/register"
+            ],
+            "args": [
+                "${workspaceFolder}/src/Training/ExtractWatermark.ts"
             ],
             "internalConsoleOptions": "openOnSessionStart"
         }

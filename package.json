@@ -6,7 +6,8 @@
     "types": "./bin/index.d.ts",
     "scripts": {
         "compile": "gulp compile",
-        "tensorboard": "tensorboard --logdir bin/training_result/tensorBoard"
+        "tensorboard_phw": "tensorboard --logdir bin/training_result/tensorBoard/PredictHasWatermark",
+        "tensorboard_ew": "tensorboard --logdir bin/training_result/tensorBoard/ExtractWatermark"
     },
     "keywords": [
         "image",
