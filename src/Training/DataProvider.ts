@@ -112,7 +112,7 @@ export class DataProvider {
 
         for (let i = 0; i < pieces; i++) {
             const data = await this._prepareData();
-            const randomAlpha = this._minTransparency + +((1 - this._minTransparency) * Math.random()).toFixed(2);  //随机水印透明度
+            const randomAlpha = +(this._minTransparency + (1 - this._minTransparency) * Math.random()).toFixed(2);  //随机水印透明度
 
             //混合原始图片与水印图片
             //公式为：原始图片*(1-透明度)+水印图片*透明度

@@ -23,12 +23,11 @@ async function training() {
     await fs.emptyDir(tensorBoardPath);
     await fs.emptyDir(savedModelPath);
 
-    const inputPixelNumber = 3 * stackSize;
     const dataProvider = new DataProvider(1, stackSize, minTransparency);
 
     const model = tf.sequential({ name: 'predict-has-watermark' });
-    model.add(tf.layers.inputLayer({ inputShape: [inputPixelNumber] }));
-    model.add(tf.layers.dense({ units: inputPixelNumber, activation: 'relu' }));
+    model.add(tf.layers.inputLayer({ inputShape: [3 * stackSize] }));
+    model.add(tf.layers.dense({ units: 3 * stackSize, activation: 'relu' }));
     model.add(tf.layers.dense({ units: 1, activation: 'relu' }));
     model.compile({ optimizer: tf.train.adam(), loss: 'meanSquaredError', metrics: ['accuracy'] });
     model.summary();
