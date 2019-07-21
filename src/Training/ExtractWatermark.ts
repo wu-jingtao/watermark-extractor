@@ -5,18 +5,25 @@ import * as canvas from 'canvas';
 import * as tf from '@tensorflow/tfjs-node-gpu';
 import { DataProvider } from "./DataProvider";
 
-const stackSize = 5;
+/**
+ * 20： acc=0.824 loss=0.110 val_acc=0.843 val_loss=0.106 
+ * 40： acc=0.840 loss=3.09e-3 val_acc=0.842 val_loss=4.18e-3
+ * 70： acc=0.776 loss=0.0993 val_acc=0.762 val_loss=0.0984
+ */
+
+const stackSize = 15;
 const minTransparency = 0.4;
 const trainingDataNumber = 10000;   //训练数据数量
 const validationPercentage = 0.2;   //分割多少的训练数据出来用作验证
-const tensorBoardPath = path.join(__dirname, '../../bin/training_result/tensorBoard');
-const savedModelPath = path.join(__dirname, '../../bin/training_result/model');
-const checkPath = path.join(__dirname, '../../bin/training_result/checkPath');
+const tensorBoardPath = path.join(__dirname, '../../bin/training_result/tensorBoard/ExtractWatermark');
+const savedModelPath = path.join(__dirname, '../../bin/training_result/model/ExtractWatermark');
+const checkPath = path.join(__dirname, '../../bin/training_result/check/ExtractWatermark');
 
 /**
  * 训练模型
  */
 async function training() {
+    console.log('开始训练');
     await fs.emptyDir(tensorBoardPath);
     await fs.emptyDir(savedModelPath);
 
@@ -43,7 +50,7 @@ async function training() {
     await model.fit(tf.stack(inputs.slice(0, split)), tf.stack(outputs.slice(0, split)), {
         epochs: 30,
         shuffle: true,
-        validationData: [tf.stack(inputs.slice(split, trainingDataNumber)), tf.stack(outputs.slice(split, trainingDataNumber))],
+        validationData: [tf.stack(inputs.slice(split)), tf.stack(outputs.slice(split))],
         callbacks: tf.node.tensorBoard(tensorBoardPath)
     });
 
@@ -55,6 +62,7 @@ async function training() {
  * 检测模型效果
  */
 async function check() {
+    console.log('开始生成检测样本');
     await fs.emptyDir(checkPath);
 
     const pictureSize = 150;
@@ -95,5 +103,4 @@ async function check() {
     console.log('完成');
 }
 
-//training();
-check();
+training().then(check);

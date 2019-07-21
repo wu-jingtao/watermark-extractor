@@ -29,5 +29,8 @@
 3. 安装 `tensorboard`。以超级用户运行 `pip install tensorboard`
 
 ### 训练数据准备
-* 训练所使用的原始图片存放在 `training_data/original` 目录下。这里面的所有图片来自于[guanyuhan426的视频《东京印象 •春》](https://www.bilibili.com/video/av1084855/?p=2)，尺寸360p，通过 `ffmpeg -skip_frame nokey -i 视频名称.flv -vsync 0 -r 30 -f image2 %d.jpeg` 提取的关键帧。
+* 训练所使用的原始图片存放在 `training_data/original` 目录下，尺寸360p，通过 `ffmpeg -skip_frame nokey -i 视频名称.flv -vsync 0 -r 30 -f image2 %d.jpeg` 提取的关键帧。
+    * 这里面的所有图片来自于[guanyuhan426的视频《东京印象 •春》](https://www.bilibili.com/video/av1084855/?p=2)
+    * 这里面的所有图片来自于[guanyuhan426的视频《日本印象 •夏》](https://www.bilibili.com/video/av1337327?from=search&seid=18383799113962970521)
+
 * 训练使用的水印图片存放在 `training_data/watermark` 目录下。水印图片需要是不透明的，大小为150px。
