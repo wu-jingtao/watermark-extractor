@@ -6,12 +6,16 @@ import * as tf from '@tensorflow/tfjs-node-gpu';
 import { DataProvider } from "./DataProvider";
 
 /**
- * 20： acc=0.824 loss=0.110 val_acc=0.843 val_loss=0.106 
- * 40： acc=0.840 loss=3.09e-3 val_acc=0.842 val_loss=4.18e-3
+ * 15： acc=0.778 loss=0.0991 val_acc=0.777 val_loss=0.0994
+ * 20： acc=0.817 loss=4.94e-3 val_acc=0.783 val_loss=5.24e-3 
+ * 20双层： acc=0.861 loss=2.35e-3 val_acc=0.814 val_loss=3.68e-3 出现过度拟合了
+ * 20单层2倍： acc=0.835 loss=3.47e-3 val_acc=0.809 val_loss=4.11e-3 出现过度拟合了
+ * 30： acc=0.827 loss=4.23e-3 val_acc=0.762 val_loss=5.53e-3
+ * 40： acc=0.825 loss=3.41e-3 val_acc=0.830 val_loss=4.28e-3 
  * 70： acc=0.776 loss=0.0993 val_acc=0.762 val_loss=0.0984
  */
 
-const stackSize = 15;
+const stackSize = 20;
 const minTransparency = 0.4;
 const trainingDataNumber = 10000;   //训练数据数量
 const validationPercentage = 0.2;   //分割多少的训练数据出来用作验证
