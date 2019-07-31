@@ -81,13 +81,13 @@ async function check() {
 
     for (let i = 0; i < data.length; i++) {
         const result = tf.tidy(() => {
-            const input = data[i].test.reshape([pictureSize ** 2, 3 * stackSize]);
+            const input = data[i].test.reshape([-1, 3 * stackSize]);
             const output = model.predict(input) as tf.Tensor2D;
             return output.reshape([pictureSize, pictureSize, 4]);
         });
 
-        const real = tf.tidy(() => data[i].answer.mul(255).floor().cast('int32')) as tf.Tensor3D;
-        const predict = tf.tidy(() => result.mul(255).floor().cast('int32')) as tf.Tensor3D;
+        const real = tf.tidy(() => data[i].answer.mul(255).round().toInt()) as tf.Tensor3D;
+        const predict = tf.tidy(() => result.mul(255).round().toInt()) as tf.Tensor3D;
 
         ctx.clearRect(0, 0, pictureSize, pictureSize);
         ctx.putImageData(canvas.createImageData(await tf.browser.toPixels(real), pictureSize, pictureSize), 0, 0);

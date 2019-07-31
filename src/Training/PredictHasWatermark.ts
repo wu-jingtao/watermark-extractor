@@ -6,11 +6,14 @@ import { DataProvider } from "./DataProvider";
 
 /**
  * 判断传入的图片是否有水印
+ * 
+ * 10：acc=0.970 loss=0.0347 val_acc=0.960 val_loss=0.0399 
+ * 20：acc=0.994 loss=0.0142 val_acc=0.983 val_loss=0.0243 
  */
 
-const stackSize = 5;
+const stackSize = 20;
 const minTransparency = 0.4;
-const noWatermarkPercentage = 0.5;  //学习数据中包含的无水印图片
+const noWatermarkPercentage = 0.4;  //学习数据中包含的无水印图片
 const trainingDataNumber = 10000;   //训练数据数量
 const validationPercentage = 0.2;   //分割多少的训练数据出来用作验证
 const tensorBoardPath = path.join(__dirname, '../../bin/training_result/tensorBoard/PredictHasWatermark');
@@ -52,7 +55,7 @@ async function training() {
     await model.fit(tf.stack(inputs.slice(0, split)), tf.stack(outputs.slice(0, split)), {
         epochs: 30,
         shuffle: true,
-        validationData: [tf.stack(inputs.slice(split, trainingDataNumber)), tf.stack(outputs.slice(split, trainingDataNumber))],
+        validationData: [tf.stack(inputs.slice(split)), tf.stack(outputs.slice(split))],
         callbacks: tf.node.tensorBoard(tensorBoardPath)
     });
 

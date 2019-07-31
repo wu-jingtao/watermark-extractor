@@ -2,8 +2,8 @@
     "name": "watermark-extractor",
     "version": "0.0.1",
     "description": "image watermark extractor",
-    "main": "./bin/index.js",
-    "types": "./bin/index.d.ts",
+    "main": "./bin/Interface/index.js",
+    "types": "./bin/Interface/index.d.ts",
     "scripts": {
         "compile": "gulp compile",
         "tensorboard_phw": "tensorboard --logdir bin/training_result/tensorBoard/PredictHasWatermark",

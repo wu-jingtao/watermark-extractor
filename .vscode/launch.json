@@ -31,6 +31,20 @@
                 "${workspaceFolder}/src/Training/ExtractWatermark.ts"
             ],
             "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "测试效果",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "ts-node/register"
+            ],
+            "args": [
+                "${workspaceFolder}/test/index.test.ts"
+            ],
+            "internalConsoleOptions": "openOnSessionStart"
         }
     ]
 }
