@@ -18,6 +18,7 @@ export class DataProvider {
     private readonly _windowSize: number;
     private readonly _stackSize: number;
     private readonly _minTransparency: number;
+    private readonly _allowDuplicate: boolean;
 
     private readonly _originalImageCache: Map<number, tf.Tensor3D> = new Map();  //原始图片缓存，key对应_originalPaths的索引
     private readonly _watermarkImageCache: Map<number, tf.Tensor3D> = new Map(); //水印图片缓存
@@ -26,8 +27,9 @@ export class DataProvider {
      * @param windowSize 要选取的图像方块大小。随机从图片上剪切`windowSize X windowSize`大小的图片给机器学习
      * @param stackSize 选取几张剪切下的图片进行堆叠(在RGB轴上进行)
      * @param minTransparency 最小透明度
+     * @param allowDuplicate 是否允许选取原始图片的时候存在重复
      */
-    constructor(windowSize: number, stackSize: number, minTransparency: number) {
+    constructor(windowSize: number, stackSize: number, minTransparency: number, allowDuplicate: boolean) {
         this._originalImagePaths = fs.readdirSync(DataProvider._originalImageDir).map(item => path.join(DataProvider._originalImageDir, item));
         this._watermarkImagePaths = fs.readdirSync(DataProvider._watermarkImageDir).map(item => path.join(DataProvider._watermarkImageDir, item));
 
@@ -40,6 +42,7 @@ export class DataProvider {
         this._windowSize = Math.trunc(windowSize);
         this._stackSize = Math.trunc(stackSize);
         this._minTransparency = minTransparency;
+        this._allowDuplicate = allowDuplicate;
     }
 
     /**
@@ -67,9 +70,13 @@ export class DataProvider {
      * 准备数据，随机返回一张windowSize大小的水印图片和堆叠原始图片
      */
     private async _prepareData(): Promise<{ watermark: tf.Tensor3D, original: tf.Tensor4D, dispose: Function }> {
-        const pickedOriginal = _.uniq(_.times(this._stackSize * 2, () => Math.floor(this._originalImagePaths.length * Math.random())));
-        if (pickedOriginal.length < this._stackSize) return this._prepareData();   //如果因重复而没有挑选到足够的原始图片就重新挑选
-        pickedOriginal.length = this._stackSize;
+        if (this._allowDuplicate)
+            var pickedOriginal = _.times(this._stackSize, () => Math.floor(this._originalImagePaths.length * Math.random()));
+        else {
+            var pickedOriginal = _.uniq(_.times(this._stackSize * 2, () => Math.floor(this._originalImagePaths.length * Math.random())));
+            if (pickedOriginal.length < this._stackSize) return this._prepareData();   //如果因重复而没有挑选到足够的原始图片就重新挑选
+            pickedOriginal.length = this._stackSize;
+        }
 
         const pickedWatermark = Math.floor(this._watermarkImagePaths.length * Math.random());
 
