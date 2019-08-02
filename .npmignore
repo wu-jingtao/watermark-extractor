@@ -1,7 +1,10 @@
 .vscode/
 test/
 src/
-!bin/
+testing_data/
+training_data/
 README.md
 gulpfile.js
 tsconfig.json
+!bin/Interface
+!bin/training_result/model

@@ -9,6 +9,7 @@
         "noEmitOnError": true,
         "strict": true,
         "strictPropertyInitialization": false,
+        "skipLibCheck": true,
         "lib": [
             "esnext"
         ]

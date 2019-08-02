@@ -10,13 +10,13 @@ import * as tf from '@tensorflow/tfjs';
 export class DataProvider {
     private static readonly _imageSize = [640, 360]; //训练图片大小
     private static readonly _imageDir = path.join(__dirname, '../../training_data'); //训练图片目录
-    private static readonly _imagePaths: string[] = fs.readdirSync(DataProvider._imageDir).map(item => path.join(DataProvider._imageDir, item)); //训练图片路径
+    private static readonly _imagePaths = fs.readdirSync(DataProvider._imageDir).map(item => path.join(DataProvider._imageDir, item)); //训练图片路径
 
     private readonly _stackSize: number;
     private readonly _minTransparency: number;
     private readonly _allowDuplicate: boolean;
 
-    private readonly _imageCache: Map<number, tf.Tensor3D> = new Map();  //训练图片缓存，key对应_imagePaths的索引
+    private readonly _imageCache = new Map<number, tf.Tensor3D>();  //训练图片缓存，key对应_imagePaths的索引
 
     /**
      * @param stackSize 选取几张图片进行堆叠(在RGB轴上进行)
@@ -128,7 +128,7 @@ export class DataProvider {
 
         for (let i = 0; i < pieces; i++) {
             const data = await this._prepareData();
-            const emptyWatermark: tf.Tensor1D = tf.zeros([4]);
+            const emptyWatermark = tf.zeros([4]) as tf.Tensor1D;
             data.watermark.dispose();
             result.push({
                 test: data.image,

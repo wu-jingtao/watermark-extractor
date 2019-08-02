@@ -1,5 +1,28 @@
 # watermark-extractor
 通过神经网络将图片中的水印提取出来，为下一步去水印打下基础。
+> PS：实际效果非常一般
+
+### 使用方法
+```javascript
+import * as fs from 'fs-extra';
+import * as canvas from 'canvas';
+import { findWatermark, extractWatermark, transformData } from 'watermark-extractor';
+// import '@tensorflow/tfjs-node';      
+// import '@tensorflow/tfjs-node-gpu';  //根据实际情况考虑是否开启GPU加速
+
+// 将图片转换成Tensor。至少需要20张图片
+const data = await transformData(_picturePaths);
+// 找出水印在图片中的位置
+const watermarkPosition = await findWatermark(data);
+// 提取水印，PNG格式
+const watermark = await extractWatermark(data, watermarkPosition);
+
+//清理内存
+data.dispose();
+watermarkPosition.dispose();
+
+await fs.writeFile(savePath, watermark);
+```
 
 ### Windows GPU开发环境搭建
 1. 安装CUDA，[参考视频](https://www.youtube.com/watch?v=HExRhnO5Mqs)
@@ -29,8 +52,8 @@
 3. 安装 `tensorboard`。以超级用户运行 `pip install tensorboard`
 
 ### 训练数据准备
-* 训练所使用的原始图片存放在 `training_data/original` 目录下，尺寸360p，通过 `ffmpeg -skip_frame nokey -i 视频名称.flv -vsync 0 -r 30 -f image2 %d.jpeg` 提取的关键帧。
-    * 这里面的所有图片来自于[guanyuhan426的视频《东京印象 •春》](https://www.bilibili.com/video/av1084855/?p=2)
-    * 这里面的所有图片来自于[guanyuhan426的视频《日本印象 •夏》](https://www.bilibili.com/video/av1337327?from=search&seid=18383799113962970521)
-
-* 训练使用的水印图片存放在 `training_data/watermark` 目录下。水印图片需要是不透明的，大小为150px。
+* 训练所使用的原始图片存放在 `training_data` 目录下，尺寸360p，通过 `ffmpeg -skip_frame nokey -i 视频名称.flv -vsync 0 -r 30 -f image2 %d.jpeg` 提取的关键帧。
+    * 这里面的所有图片来自于 [guanyuhan426的视频《东京印象 •春》](https://www.bilibili.com/video/av1084855/?p=2)
+    * 这里面的所有图片来自于 [guanyuhan426的视频《日本印象 •夏》](https://www.bilibili.com/video/av1337327?from=search&seid=18383799113962970521)
+* 测试使用的水印图片存放在 `testing_data` 目录下。
+    * 这里面的所有图片来自于 [https://youtu.be/oH2aClVmyYA](https://youtu.be/oH2aClVmyYA)
