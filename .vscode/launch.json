@@ -35,14 +35,28 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "测试效果",
+            "name": "测试-判断是否有水印",
             "runtimeArgs": [
                 "--nolazy",
                 "-r",
                 "ts-node/register"
             ],
             "args": [
-                "${workspaceFolder}/test/index.test.ts"
+                "${workspaceFolder}/test/test_findWatermark.ts"
+            ],
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "测试-提取水印",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "ts-node/register"
+            ],
+            "args": [
+                "${workspaceFolder}/test/test_extractWatermark.ts"
             ],
             "internalConsoleOptions": "openOnSessionStart"
         }

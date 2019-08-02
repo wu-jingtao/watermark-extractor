@@ -13,8 +13,8 @@ import { DataProvider } from "./DataProvider";
 
 const stackSize = 20;
 const minTransparency = 0.4;
-const allowDuplicate = true
-const noWatermarkPercentage = 0.7;  //学习数据中包含的无水印图片
+const allowDuplicate = true;
+const noWatermarkPercentage = 0.5;  //学习数据中包含的无水印图片
 const trainingDataNumber = 10000;   //训练数据数量
 const validationPercentage = 0.2;   //分割多少的训练数据出来用作验证
 const tensorBoardPath = path.join(__dirname, '../../bin/training_result/tensorBoard/PredictHasWatermark');
@@ -27,7 +27,7 @@ async function training() {
     await fs.emptyDir(tensorBoardPath);
     await fs.emptyDir(savedModelPath);
 
-    const dataProvider = new DataProvider(1, stackSize, minTransparency, allowDuplicate);
+    const dataProvider = new DataProvider(stackSize, minTransparency, allowDuplicate);
 
     const model = tf.sequential({ name: 'predict-has-watermark' });
     model.add(tf.layers.inputLayer({ inputShape: [3 * stackSize] }));
@@ -64,4 +64,4 @@ async function training() {
     console.log('训练完成');
 }
 
-training();
+training().catch(console.error);
