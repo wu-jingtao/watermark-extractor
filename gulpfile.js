@@ -3,7 +3,7 @@ const ts = require("gulp-typescript").createProject('tsconfig.json');
 
 //编译TS代码
 gulp.task("compile", function () {
-    return gulp.src('src/**/*.ts')
+    return gulp.src('src/Interface/**/*.ts')
         .pipe(ts())
-        .pipe(gulp.dest('bin'));
+        .pipe(gulp.dest('bin/Interface'));
 });
