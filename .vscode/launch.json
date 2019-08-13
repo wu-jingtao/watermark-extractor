@@ -7,14 +7,14 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "训练-判断是否有水印",
+            "name": "训练-找出水印位置",
             "runtimeArgs": [
                 "--nolazy",
                 "-r",
                 "ts-node/register"
             ],
             "args": [
-                "${workspaceFolder}/src/Training/PredictHasWatermark.ts"
+                "${workspaceFolder}/src/Training/FindWatermarkPosition.ts"
             ],
             "internalConsoleOptions": "openOnSessionStart"
         },
@@ -35,28 +35,15 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "测试-判断是否有水印",
-            "runtimeArgs": [
-                "--nolazy",
-                "-r",
-                "ts-node/register"
-            ],
+            "name": "测试效果",
+            "program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
             "args": [
-                "${workspaceFolder}/test/test_findWatermark.ts"
-            ],
-            "internalConsoleOptions": "openOnSessionStart"
-        },
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "测试-提取水印",
-            "runtimeArgs": [
-                "--nolazy",
-                "-r",
-                "ts-node/register"
-            ],
-            "args": [
-                "${workspaceFolder}/test/test_extractWatermark.ts"
+                "--timeout",
+                "999999",
+                "--colors",
+                "--require",
+                "ts-node/register",
+                "${workspaceRoot}/test/index.test.ts"
             ],
             "internalConsoleOptions": "openOnSessionStart"
         }

@@ -4,16 +4,15 @@ import * as canvas from 'canvas';
 import * as _ from 'lodash';
 import * as tf from '@tensorflow/tfjs';
 
-const _stackSize = 20;
-let _model_predictHasWatermark: tf.LayersModel;
-let _model_extractWatermark: tf.LayersModel;
+const _stackSize = 5;
+const _modelCache = new Map<string, tf.LayersModel>();
 
 export type ImageDataType = string | Buffer | canvas.Image | canvas.Canvas;
 
 /**
  * 转换图像数据。
  * 每张图片中水印的大小、颜色、位置都不能发生变化，每张图片的大小应当一致。
- * 可以传入多于_stackSize张图片，系统将自动选出其中最适合学习的图片
+ * 可以传入多于5张图片，系统将自动选出其中最适合学习的图片
  */
 export async function transformData(imageData: ImageDataType[]): Promise<tf.Tensor4D> {
     if (imageData.length < _stackSize) throw new Error(`至少传入${_stackSize}张图片`);
@@ -64,16 +63,12 @@ export async function transformData(imageData: ImageDataType[]): Promise<tf.Tens
             b_rank[(await b.data())[0]].push(item); b.dispose();
         }
 
-        r_rank.sort((a, b) => a.length - b.length);
-        g_rank.sort((a, b) => a.length - b.length);
-        b_rank.sort((a, b) => a.length - b.length);
-
         const result: Set<tf.Tensor3D> = new Set();
 
-        for (let i = 0; i < r_rank.length && result.size < _stackSize; i++) {
-            r_rank[i].forEach(item => result.add(item));
-            g_rank[i].forEach(item => result.add(item));
-            b_rank[i].forEach(item => result.add(item));
+        for (let i = 0; result.size <= _stackSize; i++ , i %= 10) {
+            if (r_rank[i].length > 0) result.add(r_rank[i].pop() as any);
+            if (g_rank[i].length > 0) result.add(g_rank[i].pop() as any);
+            if (b_rank[i].length > 0) result.add(b_rank[i].pop() as any);
         }
 
         var selected = [...result];
@@ -88,16 +83,22 @@ export async function transformData(imageData: ImageDataType[]): Promise<tf.Tens
 }
 
 /**
- * 寻找图片中的水印
+ * 寻找水印在图片中的位置
  * @param imageData 图片数据
+ * @param mode 以哪种模式寻找水印。colorful：彩色水印，white：白色水印，black：黑色水印
  * @returns 返回一个2维矩阵，true表示该像素点有水印，false表示没有
  */
-export async function findWatermark(imageData: tf.Tensor4D): Promise<tf.Tensor2D> {
-    if (_model_predictHasWatermark === undefined)
-        _model_predictHasWatermark = await tf.loadLayersModel('file://' + path.join(__dirname, '../../bin/training_result/model/PredictHasWatermark/model.json'));
+export async function findWatermarkPosition(imageData: tf.Tensor4D, mode: 'colorful' | 'white' | 'black'): Promise<tf.Tensor2D> {
+    const _key = 'findWatermarkPosition_' + mode;
+    if (_modelCache.has(_key))
+        var model = _modelCache.get(_key) as tf.LayersModel;
+    else {
+        var model = await tf.loadLayersModel('file://' + path.join(__dirname, `../../bin/training_result/model/FindWatermarkPosition/${mode}/model.json`));
+        _modelCache.set(_key, model);
+    }
 
     return tf.tidy(() => {
-        const result = _model_predictHasWatermark.predict(imageData.reshape([-1, 3 * _stackSize])) as tf.Tensor2D;
+        const result = model.predict(imageData.reshape([-1, 3 * _stackSize])) as tf.Tensor2D;
         return result.round().toBool().reshape([imageData.shape[0], imageData.shape[1]]) as tf.Tensor2D;
     });
 }
@@ -106,43 +107,40 @@ export async function findWatermark(imageData: tf.Tensor4D): Promise<tf.Tensor2D
  * 将水印图片提取出来
  * @param imageData 图片数据
  * @param watermarkPosition 水印位置
- * @param returnTensor 以png格式图片返回
- */
-export async function extractWatermark(imageData: tf.Tensor4D, watermarkPosition: tf.Tensor2D, returnTensor?: false): Promise<Buffer>
-/**
- * 将水印图片提取出来
- * @param imageData 图片数据
- * @param watermarkPosition 水印位置
- * @param returnTensor 以Tensor的形式返回
+ * @param mode 以哪种模式提取水印。colorful：彩色水印，white：白色水印，black：黑色水印
  * @returns 返回提取出的水印图片。一个3维矩阵 [3, 3, 4]。注意Tensor中每个像素点的值都被除以了255
  */
-export async function extractWatermark(imageData: tf.Tensor4D, watermarkPosition: tf.Tensor2D, returnTensor: true): Promise<tf.Tensor3D>
-export async function extractWatermark(imageData: tf.Tensor4D, watermarkPosition: tf.Tensor2D, returnTensor: boolean = false) {
-    if (_model_extractWatermark === undefined)
-        _model_extractWatermark = await tf.loadLayersModel('file://' + path.join(__dirname, '../../bin/training_result/model/ExtractWatermark/model.json'));
+export async function extractWatermark(imageData: tf.Tensor4D, watermarkPosition: tf.Tensor2D, mode: 'colorful' | 'white' | 'black'): Promise<tf.Tensor3D> {
+    const _key = 'extractWatermark_' + mode;
+    if (_modelCache.has(_key))
+        var model = _modelCache.get(_key) as tf.LayersModel;
+    else {
+        var model = await tf.loadLayersModel('file://' + path.join(__dirname, `../../bin/training_result/model/ExtractWatermark/${mode}/model.json`));
+        _modelCache.set(_key, model);
+    }
 
     const position = await tf.whereAsync(watermarkPosition);
-
-    const result = tf.tidy(() => {
+    return tf.tidy(() => {
         const pixels = tf.gatherND(imageData, position);
-        const result = _model_extractWatermark.predict(pixels.reshape([-1, 3 * _stackSize])) as tf.Tensor2D;
+        const result = model.predict(pixels.reshape([-1, 3 * _stackSize])) as tf.Tensor2D;
         const reposition = tf.scatterND(position, result, [imageData.shape[0], imageData.shape[1], 4]) as tf.Tensor3D;
 
         position.dispose();
         return reposition;
     });
+}
 
-    if (returnTensor)
-        return result;
-    else {
-        const can = canvas.createCanvas(imageData.shape[1], imageData.shape[0]);
-        const ctx = can.getContext('2d');
+/**
+ * 将tensor转换成PNG图片。
+ * 对于水印位置tensor将会被转换成黑白图片，白色代表有水印。
+ */
+export async function tensorToPNG(data: tf.Tensor2D | tf.Tensor3D): Promise<Buffer> {
+    const can = canvas.createCanvas(data.shape[1], data.shape[0]);
+    const ctx = can.getContext('2d');
 
-        const picture = tf.tidy(() => result.mul(255).round().toInt()) as tf.Tensor3D;
-        ctx.putImageData(canvas.createImageData(await tf.browser.toPixels(picture), imageData.shape[1], imageData.shape[0]), 0, 0);
+    if (data.rank === 2) data = (data as any).toFloat();
+    ctx.putImageData(canvas.createImageData(await tf.browser.toPixels(data), data.shape[1], data.shape[0]), 0, 0);
+    if (data.rank === 2) data.dispose();
 
-        result.dispose();
-        picture.dispose();
-        return can.toBuffer('image/png');
-    }
+    return can.toBuffer('image/png');
 }

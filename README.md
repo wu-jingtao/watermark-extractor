@@ -4,24 +4,27 @@
 
 ### 使用方法
 ```javascript
-import * as fs from 'fs-extra';
-import * as canvas from 'canvas';
-import { findWatermark, extractWatermark, transformData } from 'watermark-extractor';
+import { transformData, tensorToPNG, findWatermarkPosition, extractWatermark } from 'watermark-extractor';
 // import '@tensorflow/tfjs-node';      
 // import '@tensorflow/tfjs-node-gpu';  //根据实际情况考虑是否开启GPU加速
 
-// 将图片转换成Tensor。至少需要20张图片
+// 将图片转换成Tensor。至少需要5张图片
 const data = await transformData(_picturePaths);
+
 // 找出水印在图片中的位置
-const watermarkPosition = await findWatermark(data);
+const watermarkPosition = await findWatermarkPosition(data, '颜色模式');
+
 // 提取水印，PNG格式
-const watermark = await extractWatermark(data, watermarkPosition);
+const watermark = await extractWatermark(data, watermarkPosition, '颜色模式');
+
+//Tensor转换成图片
+const png_watermarkPosition = tensorToPNG(watermarkPosition);
+const png_watermark = tensorToPNG(watermark);
 
 //清理内存
 data.dispose();
 watermarkPosition.dispose();
-
-await fs.writeFile(savePath, watermark);
+watermark.dispose();
 ```
 
 ### Windows GPU开发环境搭建
@@ -52,8 +55,5 @@ await fs.writeFile(savePath, watermark);
 3. 安装 `tensorboard`。以超级用户运行 `pip install tensorboard`
 
 ### 训练数据准备
-* 训练所使用的原始图片存放在 `training_data` 目录下，尺寸360p，通过 `ffmpeg -skip_frame nokey -i 视频名称.flv -vsync 0 -r 30 -f image2 %d.jpeg` 提取的关键帧。
-    * 这里面的所有图片来自于 [guanyuhan426的视频《东京印象 •春》](https://www.bilibili.com/video/av1084855/?p=2)
-    * 这里面的所有图片来自于 [guanyuhan426的视频《日本印象 •夏》](https://www.bilibili.com/video/av1337327?from=search&seid=18383799113962970521)
-* 测试使用的水印图片存放在 `testing_data` 目录下。
-    * 这里面的所有图片来自于 [https://youtu.be/oH2aClVmyYA](https://youtu.be/oH2aClVmyYA)
+* 从视频中提取关键帧：`ffmpeg -skip_frame nokey -i 视频名称.flv -vsync 0 -r 30 -f image2 %d.jpeg`。
+* 注意通过关键帧来提取水印可能会导致水印图片变得模糊。

@@ -1,20 +1,23 @@
 {
     "name": "watermark-extractor",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "image watermark extractor",
     "main": "./bin/Interface/index.js",
     "types": "./bin/Interface/index.d.ts",
     "scripts": {
         "compile": "gulp compile",
-        "tensorboard_phw": "tensorboard --logdir bin/training_result/tensorBoard/PredictHasWatermark",
-        "tensorboard_ew": "tensorboard --logdir bin/training_result/tensorBoard/ExtractWatermark"
+        "tensorboard_fwc": "tensorboard --logdir bin/training_result/tensorBoard/FindWatermarkPosition/colorful",
+        "tensorboard_fww": "tensorboard --logdir bin/training_result/tensorBoard/FindWatermarkPosition/white",
+        "tensorboard_fwb": "tensorboard --logdir bin/training_result/tensorBoard/FindWatermarkPosition/black",
+        "tensorboard_ewc": "tensorboard --logdir bin/training_result/tensorBoard/ExtractWatermark/colorful",
+        "tensorboard_eww": "tensorboard --logdir bin/training_result/tensorBoard/ExtractWatermark/white",
+        "tensorboard_ewb": "tensorboard --logdir bin/training_result/tensorBoard/ExtractWatermark/black"
     },
     "keywords": [
         "image",
         "watermark",
         "extractor",
-        "extract",
-        "remove"
+        "extract"
     ],
     "author": "wujingtao",
     "license": "MIT",
@@ -28,19 +31,20 @@
     "homepage": "https://github.com/mx601595686/watermark-extractor#readme",
     "devDependencies": {
         "@tensorflow/tfjs-node": "^1.2.3",
-        "@tensorflow/tfjs-node-gpu": "^1.2.3",
         "@types/fs-extra": "^8.0.0",
         "@types/lodash": "^4.14.136",
+        "@types/mocha": "^5.2.7",
         "@types/node": "^12.0.12",
         "fs-extra": "^8.1.0",
         "gulp": "^4.0.2",
         "gulp-typescript": "^5.0.1",
+        "mocha": "^6.2.0",
         "ts-node": "^8.3.0",
         "typescript": "^3.5.2"
     },
     "dependencies": {
+        "@tensorflow/tfjs": "^1.2.2",
         "canvas": "^2.5.0",
-        "lodash": "^4.17.13",
-        "@tensorflow/tfjs": "^1.2.2"
+        "lodash": "^4.17.13"
     }
 }
