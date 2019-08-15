@@ -86,7 +86,7 @@ export async function transformData(imageData: ImageDataType[]): Promise<tf.Tens
  * 寻找水印在图片中的位置
  * @param imageData 图片数据
  * @param mode 以哪种模式寻找水印。colorful：彩色水印，white：白色水印，black：黑色水印
- * @returns 返回一个2维矩阵，true表示该像素点有水印，false表示没有
+ * @returns 返回一个2维矩阵，值的大小表示存在水印的概率
  */
 export async function findWatermarkPosition(imageData: tf.Tensor4D, mode: 'colorful' | 'white' | 'black'): Promise<tf.Tensor2D> {
     const _key = 'findWatermarkPosition_' + mode;
@@ -99,18 +99,20 @@ export async function findWatermarkPosition(imageData: tf.Tensor4D, mode: 'color
 
     return tf.tidy(() => {
         const result = model.predict(imageData.reshape([-1, 3 * _stackSize])) as tf.Tensor2D;
-        return result.round().toBool().reshape([imageData.shape[0], imageData.shape[1]]) as tf.Tensor2D;
+        return result.reshape([imageData.shape[0], imageData.shape[1]]) as tf.Tensor2D;
     });
 }
 
 /**
  * 将水印图片提取出来
  * @param imageData 图片数据
- * @param watermarkPosition 水印位置
+ * @param watermarkPosition 水印位置。注意传入的应当是一个bool类型的tensor
  * @param mode 以哪种模式提取水印。colorful：彩色水印，white：白色水印，black：黑色水印
  * @returns 返回提取出的水印图片。一个3维矩阵 [3, 3, 4]。注意Tensor中每个像素点的值都被除以了255
  */
 export async function extractWatermark(imageData: tf.Tensor4D, watermarkPosition: tf.Tensor2D, mode: 'colorful' | 'white' | 'black'): Promise<tf.Tensor3D> {
+    if (watermarkPosition.dtype !== 'bool') throw new Error('传入的 watermarkPosition 应当是bool类型的tensor');
+
     const _key = 'extractWatermark_' + mode;
     if (_modelCache.has(_key))
         var model = _modelCache.get(_key) as tf.LayersModel;
@@ -138,9 +140,6 @@ export async function tensorToPNG(data: tf.Tensor2D | tf.Tensor3D): Promise<Buff
     const can = canvas.createCanvas(data.shape[1], data.shape[0]);
     const ctx = can.getContext('2d');
 
-    if (data.rank === 2) data = (data as any).toFloat();
     ctx.putImageData(canvas.createImageData(await tf.browser.toPixels(data), data.shape[1], data.shape[0]), 0, 0);
-    if (data.rank === 2) data.dispose();
-
     return can.toBuffer('image/png');
 }

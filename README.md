@@ -12,18 +12,22 @@ import { transformData, tensorToPNG, findWatermarkPosition, extractWatermark } f
 const data = await transformData(_picturePaths);
 
 // 找出水印在图片中的位置
-const watermarkPosition = await findWatermarkPosition(data, '颜色模式');
+const position = await findWatermarkPosition(data, '颜色模式');
+
+// 选择概率大于70%的位置
+const selected = tf.tidy(()=> position.greaterEqual(tf.fill(position.shape, 0.7)));
 
 // 提取水印，PNG格式
-const watermark = await extractWatermark(data, watermarkPosition, '颜色模式');
+const watermark = await extractWatermark(data, selected, '颜色模式');
 
 //Tensor转换成图片
-const png_watermarkPosition = tensorToPNG(watermarkPosition);
+const png_position = tensorToPNG(position);
 const png_watermark = tensorToPNG(watermark);
 
 //清理内存
 data.dispose();
-watermarkPosition.dispose();
+position.dispose();
+selected.dispose();
 watermark.dispose();
 ```
 

@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs-node';
 
 import { transformData, tensorToPNG, findWatermarkPosition, extractWatermark } from '../src/Interface';
 
@@ -18,7 +18,7 @@ it('测试 - 彩色水印', async function () {
 
     const data = await transformData(testingFiles);
     const position = await findWatermarkPosition(data, 'colorful');
-    const watermark = await extractWatermark(data, position, 'colorful');
+    const watermark = await extractWatermark(data, position.greaterEqual(tf.fill(position.shape, 0.7)), 'colorful');
 
     await fs.writeFile(result_position, await tensorToPNG(position));
     await fs.writeFile(result_watermark, await tensorToPNG(watermark));
@@ -35,7 +35,7 @@ it('测试 - 白色水印', async function () {
 
     const data = await transformData(testingFiles);
     const position = await findWatermarkPosition(data, 'white');
-    const watermark = await extractWatermark(data, position, 'white');
+    const watermark = await extractWatermark(data, position.greaterEqual(tf.fill(position.shape, 0.7)), 'white');
 
     await fs.writeFile(result_position, await tensorToPNG(position));
     await fs.writeFile(result_watermark, await tensorToPNG(watermark));
@@ -52,7 +52,7 @@ it('测试 - 黑色水印', async function () {
 
     const data = await transformData(testingFiles);
     const position = await findWatermarkPosition(data, 'black');
-    const watermark = await extractWatermark(data, position, 'black');
+    const watermark = await extractWatermark(data, position.greaterEqual(tf.fill(position.shape, 0.7)), 'black');
 
     await fs.writeFile(result_position, await tensorToPNG(position));
     await fs.writeFile(result_watermark, await tensorToPNG(watermark));
