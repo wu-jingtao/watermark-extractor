@@ -1,6 +1,6 @@
 {
     "name": "watermark-extractor",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "image watermark extractor",
     "main": "./bin/Interface/index.js",
     "types": "./bin/Interface/index.d.ts",
