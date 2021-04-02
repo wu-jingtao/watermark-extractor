@@ -23,12 +23,12 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/mx601595686/watermark-extractor.git"
+        "url": "git+https://github.com/wu-jingtao/watermark-extractor.git"
     },
     "bugs": {
-        "url": "https://github.com/mx601595686/watermark-extractor/issues"
+        "url": "https://github.com/wu-jingtao/watermark-extractor/issues"
     },
-    "homepage": "https://github.com/mx601595686/watermark-extractor#readme",
+    "homepage": "https://github.com/wu-jingtao/watermark-extractor#readme",
     "devDependencies": {
         "@tensorflow/tfjs-node": "^1.2.9",
         "@types/fs-extra": "^8.0.0",
